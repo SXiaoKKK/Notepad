@@ -8,80 +8,16 @@ class SyncManager {
     }
     
     setupSync() {
-        // 监听P2P数据接收
-        this.p2pManager.onDataReceived = (data) => {
-            this.handleIncomingData(data);
-        };
-        
         // 监听连接状态
-        this.p2pManager.onConnectionStateChange = (state) => {
-            this.isConnected = state === 'connected';
+        const originalStatusChange = this.p2pManager.onStatusChange;
+        this.p2pManager.onStatusChange = (status) => {
+            this.isConnected = status.includes('已连接');
             
-            if (state === 'connected') {
-                // 连接建立后，立即同步所有笔记
-                this.syncAllNotes();
+            // 调用原始的状态变化回调
+            if (originalStatusChange) {
+                originalStatusChange(status);
             }
         };
-    }
-    
-    handleIncomingData(data) {
-        switch (data.type) {
-            case 'sync-all':
-                // 接收全部笔记同步
-                this.handleSyncAll(data.notes);
-                break;
-                
-            case 'sync-note':
-                // 接收单个笔记同步
-                this.handleSyncNote(data.note);
-                break;
-                
-            case 'delete-note':
-                // 接收删除笔记指令
-                this.handleDeleteNote(data.noteId);
-                break;
-                
-            case 'request-sync':
-                // 对方请求同步
-                this.syncAllNotes();
-                break;
-        }
-    }
-    
-    handleSyncAll(remoteNotes) {
-        const mergedNotes = this.noteApp.mergeNotes(this.noteApp.notes, remoteNotes);
-        this.noteApp.notes = mergedNotes;
-        this.noteApp.saveNotes();
-        this.noteApp.updateNotesList();
-    }
-    
-    handleSyncNote(remoteNote) {
-        const localIndex = this.noteApp.notes.findIndex(n => n.id === remoteNote.id);
-        
-        if (localIndex === -1) {
-            // 新笔记，直接添加
-            this.noteApp.notes.push(remoteNote);
-        } else {
-            // 比较更新时间，保留最新版本
-            const localNote = this.noteApp.notes[localIndex];
-            if (new Date(remoteNote.updatedAt) > new Date(localNote.updatedAt)) {
-                this.noteApp.notes[localIndex] = remoteNote;
-            }
-        }
-        
-        this.noteApp.saveNotes();
-        this.noteApp.updateNotesList();
-    }
-    
-    handleDeleteNote(noteId) {
-        this.noteApp.notes = this.noteApp.notes.filter(n => n.id !== noteId);
-        this.noteApp.saveNotes();
-        
-        if (this.noteApp.currentNoteId === noteId) {
-            this.noteApp.showListView();
-        }
-        
-        this.noteApp.updateNotesList();
     }
     
     syncAllNotes() {
@@ -89,7 +25,7 @@ class SyncManager {
         
         const data = {
             type: 'sync-all',
-            notes: this.noteApp.notes,
+            data: this.noteApp.notes,
             timestamp: new Date().toISOString()
         };
         
