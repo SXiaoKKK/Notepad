@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#f5f5f5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link rel="stylesheet" href="./css/style.css">
+    <title>备忘录 PWA</title>
+</head>
+
+<body>
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="header-left">
+                <button id="backBtn" class="btn-icon" style="display:none;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <h1 class="header-title">备忘录</h1>
+            </div>
+            <div class="header-right">
+                <button id="syncBtn" class="btn-icon" title="同步设置">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 11-2.5-6.3M21 3v6h-6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <button id="newNoteBtn" class="btn-icon" title="新建笔记">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 笔记列表视图 -->
+        <div id="listView" class="view">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="搜索" class="search-input">
+            </div>
+            <div id="notesList" class="notes-list"></div>
+            <div id="emptyState" class="empty-state">
+                <p>没有备忘录</p>
+                <p class="empty-hint">点击右上角 + 创建新备忘录</p>
+            </div>
+        </div>
+
+        <!-- 笔记编辑视图 -->
+        <div id="editorView" class="view" style="display:none;">
+            <div class="editor-container">
+                <input type="text" id="noteTitle" class="note-title-input" placeholder="标题">
+                <textarea id="noteContent" class="note-content-input" placeholder="开始写..."></textarea>
+            </div>
+            <div class="editor-footer">
+                <button id="deleteNoteBtn" class="btn-danger">删除备忘录</button>
+            </div>
+        </div>
+
+        <!-- 同步对话框 -->
+        <div id="syncModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>同步备忘录</h2>
+                    <button id="closeSyncBtn" class="btn-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="sync-section">
+                        <h3>创建房间</h3>
+                        <p>创建一个房间，让其他设备加入</p>
+                        <button id="createRoomBtn" class="btn-primary">创建房间</button>
+                        <div id="roomInfo" style="display:none;">
+                            <p>房间密码: <strong id="roomCode"></strong></p>
+                            <p>状态: <span id="connectionStatus">等待连接...</span></p>
+                        </div>
+                    </div>
+                    <div class="sync-divider">
+                        <span>或</span>
+                    </div>
+                    <div class="sync-section">
+                        <h3>加入房间</h3>
+                        <p>输入6位数房间密码</p>
+                        <div class="join-form">
+                            <input type="text" id="joinCodeInput" class="code-input" placeholder="输入6位密码" maxlength="6"
+                                pattern="[0-9]{6}">
+                            <button id="joinRoomBtn" class="btn-secondary">加入</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/app.js"></script>
+    <script src="./js/p2p.js"></script>
+    <script src="./js/sync.js"></script>
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js', {
+                    scope: './'
+                }).then(registration => {
+                    console.log('ServiceWorker注册成功:', registration.scope);
+                }).catch(err => {
+                    console.log('ServiceWorker注册失败:', err);
+                });
+            });
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new NoteApp();
+            window.app.init();
+        });
+    </script>
+</body>
+
+</html>
