@@ -1,23 +1,25 @@
-const CACHE_NAME = 'notepad-pwa-v2';
+const CACHE_NAME = 'notepad-pwa-v3';  // 更新版本号
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/css/style.css',
+    './',
+    './index.html',
+    './css/style.css',
     './js/peerjs.min.js',
-    '/js/app.js',
-    '/js/p2p.js',
-    '/js/sync.js',
-    '/manifest.json',
-    '/icons/icon-192x192.png',
-    '/icons/icon-512x512.png'
+    './js/app.js',
+    './js/p2p.js',
+    './js/sync.js',
+    './manifest.json',
+    './icons/icon-192x192.png',
+    './icons/icon-512x512.png'
 ];
 
-// 安装Service Worker
+// 安装Service Worker - 立即激活
 self.addEventListener('install', event => {
+    self.skipWaiting();  // 跳过等待，立即激活
+    
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('缓存已打开');
+                console.log('新缓存已创建');
                 return cache.addAll(urlsToCache);
             })
             .catch(err => {
@@ -26,7 +28,7 @@ self.addEventListener('install', event => {
     );
 });
 
-// 激活Service Worker
+// 激活Service Worker - 清理旧缓存并控制所有页面
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
@@ -38,54 +40,46 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
+        }).then(() => {
+            // 立即控制所有客户端页面
+            return self.clients.claim();
         })
     );
 });
 
-// 拦截请求
+// 拦截请求 - 网络优先策略
 self.addEventListener('fetch', event => {
     event.respondWith(
-        caches.match(event.request)
+        fetch(event.request)
             .then(response => {
-                // 缓存命中，返回缓存
-                if (response) {
-                    return response;
+                // 网络请求成功，更新缓存
+                if (response && response.status === 200) {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
                 }
-                
-                // 克隆请求
-                const fetchRequest = event.request.clone();
-                
-                return fetch(fetchRequest)
-                    .then(response => {
-                        // 检查是否有效的响应
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
+                return response;
+            })
+            .catch(() => {
+                // 网络失败，使用缓存
+                return caches.match(event.request)
+                    .then(cachedResponse => {
+                        if (cachedResponse) {
+                            return cachedResponse;
                         }
-                        
-                        // 克隆响应
-                        const responseToCache = response.clone();
-                        
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                cache.put(event.request, responseToCache);
-                            });
-                        
-                        return response;
-                    })
-                    .catch(() => {
-                        // 离线时返回离线页面或继续使用缓存
-                        return caches.match('/index.html');
+                        // 如果是HTML请求，返回缓存的index.html
+                        if (event.request.headers.get('accept').includes('text/html')) {
+                            return caches.match('./index.html');
+                        }
                     });
             })
     );
 });
 
-// 后台同步（如果需要）
-self.addEventListener('sync', event => {
-    if (event.tag === 'sync-memos') {
-        event.waitUntil(
-            // 执行后台同步逻辑
-            console.log('后台同步触发')
-        );
+// 接收消息（可用于手动触发更新）
+self.addEventListener('message', event => {
+    if (event.data === 'skipWaiting') {
+        self.skipWaiting();
     }
 });
